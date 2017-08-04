@@ -29,7 +29,7 @@ defmodule PhoenixChannelClient.Socket do
 
       #alias PhoenixChannelClient.Push
 
-      def start_link() do
+      def start_link(_opts) do
         unquote(Logger.debug("Socket start_link #{__MODULE__}"))
         GenServer.start_link(PhoenixChannelClient.Socket, {unquote(__MODULE__), unquote(var!(config))}, name: __MODULE__)
       end
