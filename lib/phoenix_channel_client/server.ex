@@ -5,7 +5,7 @@ defmodule PhoenixChannelClient.Server do
   @default_timeout 5_000
 
   def start_link(sender, opts) do
-    GenServer.start_link(__MODULE__, {sender, opts}, name: sender)
+    GenServer.start_link(__MODULE__, {sender, opts}, name: (opts[:name] || sender))
   end
 
   def join(pid, params \\ %{}, opts \\ []) do
@@ -23,6 +23,8 @@ defmodule PhoenixChannelClient.Server do
   end
 
   def push(pid, event, payload, opts \\ []) do
+    IO.puts "PUSH: #{inspect opts}"
+
     timeout =  opts[:timeout] || @default_timeout
     GenServer.call(pid, {:push, event, payload, timeout})
   end
@@ -78,7 +80,7 @@ defmodule PhoenixChannelClient.Server do
   end
 
   def handle_info({:trigger, "phx_error", reason, _ref}, state) do
-    Logger.error "Trigger Error: #{inspect reason}"
+    Logger.debug "Trigger Error: #{inspect reason}"
     state.sender.handle_close({:closed, reason}, %{state | state: :errored})
   end
 
@@ -117,11 +119,11 @@ defmodule PhoenixChannelClient.Server do
   # Push timer expired
 
   def handle_info({:timeout, _timer, push}, %{join_push: push} = state) do
-    Logger.error "Timer Expired for Join: #{inspect push}"
+    Logger.debug "Timer Expired for Join: #{inspect push}"
     state.sender.handle_reply({:timeout, :join}, state)
   end
   def handle_info({:timeout, timer, _push}, %{pushes: pushes} = state) do
-    Logger.error "Timer Expired for Push: #{inspect pushes}"
+    Logger.debug "Timer Expired for Push: #{inspect pushes}"
     partition =
       Enum.partition(pushes, fn({ref, _}) ->
         ref == timer

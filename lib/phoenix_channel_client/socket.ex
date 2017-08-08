@@ -8,18 +8,10 @@ defmodule PhoenixChannelClient.Socket do
               {:noreply, state :: map} |
               {:stop, reason :: term, state :: map}
 
-  defmacro __using__(opts) do
+  defmacro __using__(_opts) do
     quote do
       require Logger
-      unquote(config(opts))
       unquote(socket())
-    end
-  end
-
-  defp config(opts) do
-    quote do
-      var!(otp_app) = unquote(opts)[:otp_app] || raise "socket expects :otp_app to be given"
-      var!(config) = Application.get_env(var!(otp_app), __MODULE__)
     end
   end
 
@@ -29,9 +21,13 @@ defmodule PhoenixChannelClient.Socket do
 
       #alias PhoenixChannelClient.Push
 
-      def start_link(_opts) do
+      def start_link(url) do
+        options = [
+          serializer: Poison,
+          url: url
+        ]
         unquote(Logger.debug("Socket start_link #{__MODULE__}"))
-        GenServer.start_link(PhoenixChannelClient.Socket, {unquote(__MODULE__), unquote(var!(config))}, name: __MODULE__)
+        GenServer.start_link(PhoenixChannelClient.Socket, {unquote(__MODULE__), options}, name: __MODULE__)
       end
 
       def push(pid, topic, event, payload) do
@@ -66,9 +62,8 @@ defmodule PhoenixChannelClient.Socket do
     heartbeat_interval = opts[:heartbeat_interval] || @heartbeat_interval
     reconnect_interval = opts[:reconnect_interval] || @reconnect_interval
     ws_opts = Keyword.put(opts, :sender, self())
+
     {:ok, pid} = adapter.open(ws_opts[:url], ws_opts)
-
-
 
     {:ok, %{
       sender: sender,
@@ -78,6 +73,7 @@ defmodule PhoenixChannelClient.Socket do
       reconnect: reconnect,
       reconnect_timer: nil,
       heartbeat_interval: heartbeat_interval,
+      heartbeat_timer: nil,
       reconnect_interval: reconnect_interval,
       status: :disconnected,
       adapter: adapter,
@@ -112,15 +108,15 @@ defmodule PhoenixChannelClient.Socket do
 
   def handle_info({:connected, socket}, %{socket: socket} = state) do
     Logger.debug "Connected Socket: #{inspect __MODULE__}"
-    :erlang.send_after(state.heartbeat_interval, self(), :heartbeat)
-    {:noreply, %{state | status: :connected}}
+    heartbeat_timer = :erlang.send_after(state.heartbeat_interval, self(), :heartbeat)
+    {:noreply, %{state | status: :connected, heartbeat_timer: heartbeat_timer}}
   end
 
   def handle_info(:heartbeat, state) do
     ref = state.ref + 1
     send(state.socket, {:send, %{topic: "phoenix", event: "heartbeat", payload: %{}, ref: ref}})
-    :erlang.send_after(state.heartbeat_interval, self(), :heartbeat)
-    {:noreply, %{state | ref: ref}}
+    heartbeat_timer = :erlang.send_after(state.heartbeat_interval, self(), :heartbeat)
+    {:noreply, %{state | ref: ref, heartbeat_timer: heartbeat_timer}}
   end
 
   # New Messages from the socket come in here
@@ -139,6 +135,9 @@ defmodule PhoenixChannelClient.Socket do
     Logger.debug "Socket Closed: #{inspect reason}"
     Enum.each(state.channels, fn({pid, _channel})-> send(pid, {:trigger, "phx_error", :closed, nil}) end)
     if state.reconnect == true do
+      if state.heartbeat_timer != nil do
+        :erlang.cancel_timer(state.heartbeat_timer)
+      end
       :erlang.send_after(state[:reconnect_interval], self(), :connect)
     end
     state.sender.handle_close(reason, %{state | status: :disconnected})
