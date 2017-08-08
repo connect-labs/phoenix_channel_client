@@ -43,6 +43,6 @@ defmodule PhoenixChannelClient.Mixfile do
   defp package do
     [maintainers: ["Jake Humphrey"],
      licenses: ["Apache 2.0"],
-     links: %{"Github" => "https://github.com/connectlabs/phoenix_channel_client"}]
+     links: %{"Github" => "https://github.com/connect-labs/phoenix_channel_client"}]
   end
 end
