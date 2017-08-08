@@ -4,7 +4,7 @@ defmodule PhoenixChannelClient.Mixfile do
   def project do
     [app: :phoenix_channel_client,
      version: "0.2.0",
-     elixir: "~> 1.0",
+     elixir: "~> 1.5",
      build_embedded: Mix.env == :prod,
      start_permanent: Mix.env == :prod,
      description: description(),
@@ -41,8 +41,8 @@ defmodule PhoenixChannelClient.Mixfile do
   end
 
   defp package do
-    [maintainers: ["Justin Schneck"],
+    [maintainers: ["Jake Humphrey"],
      licenses: ["Apache 2.0"],
-     links: %{"Github" => "https://github.com/mobileoverlord/phoenix_channel_client"}]
+     links: %{"Github" => "https://github.com/connectlabs/phoenix_channel_client"}]
   end
 end
