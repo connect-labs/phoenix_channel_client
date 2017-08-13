@@ -2,7 +2,7 @@ defmodule PhoenixChannelClient.Socket do
   require Logger
 
   @heartbeat_interval 30_000
-  @reconnect_interval 60_000
+  @reconnect_interval 15_000
 
   @callback handle_close(reply :: Tuple.t, state :: map) ::
               {:noreply, state :: map} |
@@ -106,8 +106,16 @@ defmodule PhoenixChannelClient.Socket do
     {:reply, channel, %{state | channels: channels}}
   end
 
-  def handle_info({:connected, socket}, %{socket: socket} = state) do
+  def handle_info({:connected, socket}, %{socket: socket, channels: channels} = state) do
     Logger.debug "Connected Socket: #{inspect __MODULE__}"
+
+    # Restart/Start and channels tied to the socket.  Usually these only exist if the
+    # socket was disconnected.  If the process crashes, the state is cleared and they
+    # will not be restarted.  If the channel server is still running, it may try to reconnect
+    # from there. 
+    channels
+    |> Enum.map(fn {chan_pid, _} -> Process.send(chan_pid, :rejoin, []) end)
+
     heartbeat_timer = :erlang.send_after(state.heartbeat_interval, self(), :heartbeat)
     {:noreply, %{state | status: :connected, heartbeat_timer: heartbeat_timer}}
   end

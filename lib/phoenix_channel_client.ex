@@ -51,20 +51,20 @@ defmodule PhoenixChannelClient do
         Server.cancel_push(channel_name, push_ref)
       end
 
-      def push(channel_name, event, payload) when is_binary(channel_name) or is_atom(channel_name) do
-        Server.push(channel_name, event, payload, [])
+      def push(channel_name, event, payload, reply_pid) when is_binary(channel_name) or is_atom(channel_name) do
+        Server.push(channel_name, event, payload, reply_pid, [])
       end
 
-      def push(channel_name, event, payload, opts) when is_binary(channel_name) or is_atom(channel_name) do
-        Server.push(channel_name, event, payload, opts)
+      def push(channel_name, event, payload, reply_pid, opts) when is_binary(channel_name) or is_atom(channel_name) do
+        Server.push(channel_name, event, payload, reply_pid, opts)
       end
 
-      def push(event, payload) do
-        Server.push(__MODULE__, event, payload, [])
+      def push(event, payload, reply_pid) do
+        Server.push(__MODULE__, event, payload, reply_pid, [])
       end
 
-      def push(event, payload, opts) do
-        Server.push(__MODULE__, event, payload, opts)
+      def push(event, payload, reply_pid, opts) do
+        Server.push(__MODULE__, event, payload, reply_pid, opts)
       end
 
       def handle_in(event, payload, state) do
@@ -76,7 +76,7 @@ defmodule PhoenixChannelClient do
         {:noreply, state}
       end
 
-      def handle_close(payload, state) do
+      def handle_close(payload, %{state: :errored} = state) do
         IO.inspect "Handle Close"
         {:noreply, state}
       end
