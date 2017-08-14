@@ -112,7 +112,7 @@ defmodule PhoenixChannelClient.Socket do
     # Restart/Start and channels tied to the socket.  Usually these only exist if the
     # socket was disconnected.  If the process crashes, the state is cleared and they
     # will not be restarted.  If the channel server is still running, it may try to reconnect
-    # from there. 
+    # from there.
     channels
     |> Enum.map(fn {chan_pid, _} -> Process.send(chan_pid, :rejoin, []) end)
 
@@ -133,7 +133,7 @@ defmodule PhoenixChannelClient.Socket do
     Enum.filter(channels, fn({_channel, channel_topic}) ->
       topic == channel_topic
     end)
-    |> Enum.each(fn({channel, _}) ->
+    |> Enum.each(fn({channel, cname}) ->
       send(channel, {:trigger, event, payload, ref})
     end)
     {:noreply, state}

@@ -117,6 +117,18 @@ defmodule PhoenixChannelClient.Server do
     state.sender.handle_close({:closed, reason}, %{state | state: :closed})
   end
 
+  def handle_info({:trigger, "phx_close", reason, _ref}, %{state: :joining} = state) do
+    Logger.debug "Trigger Close: Duplicate channel"
+    {:noreply, state}
+  end
+
+  def handle_info({:trigger, "phx_reply", %{"response" => %{"reason" => "unmatched topic"}, "status" => "error"}, ref}, state) do
+    Logger.debug "Trigger Reply: Unmatched topic restart"
+    push = state.join_push
+    state.socket.push(state.socket, push.topic, "phx_join", push.payload)
+    {:noreply, state}
+  end
+
   def handle_info({:trigger, "phx_reply", %{"status" => status} = payload, ref}, %{join_push: %{ref: join_ref}} = state) when ref == join_ref do
     :erlang.cancel_timer(state.join_timer)
     state.sender.handle_reply({String.to_atom(status), :join, payload, ref}, %{state | state: :joined})
